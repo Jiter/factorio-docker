@@ -1,4 +1,4 @@
-FROM frolvlad/alpine-glibc:alpine-3.13
+FROM frolvlad/alpine-glibc:alpine-3.12
 
 LABEL maintainer="https://github.com/factoriotools/factorio-docker"
 
@@ -7,10 +7,14 @@ ARG GROUP=factorio
 ARG PUID=845
 ARG PGID=845
 
+# version checksum of the archive to download
+ARG VERSION
+ARG SHA256
+
 ENV PORT=34197 \
     RCON_PORT=27015 \
-    VERSION=0.17.79 \
-    SHA1=7f127baf3cf01c6e545a9ca376dec1ac37468f8a \
+    VERSION=${VERSION} \
+    SHA256=${SHA256} \
     SAVES=/factorio/saves \
     CONFIG=/factorio/config \
     MODS=/factorio/mods \
@@ -21,12 +25,20 @@ ENV PORT=34197 \
 
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN set -ox pipefail \
+    && if [[ "${VERSION}" == "" ]]; then \
+        echo "build-arg VERSION is required" \
+        && exit 1; \
+    fi \
+    && if [[ "${SHA256}" == "" ]]; then \
+        echo "build-arg SHA256 is required" \
+        && exit 1; \
+    fi \
     && archive="/tmp/factorio_headless_x64_$VERSION.tar.xz" \
     && mkdir -p /opt /factorio \
     && apk add --update --no-cache --no-progress bash binutils curl file gettext jq libintl pwgen shadow su-exec \
     && curl -sSL "https://www.factorio.com/get-download/$VERSION/headless/linux64" -o "$archive" \
-    && echo "$SHA1  $archive" | sha1sum -c \
-    || (sha1sum "$archive" && file "$archive" && exit 1) \
+    && echo "$SHA256  $archive" | sha256sum -c \
+    || (sha256sum "$archive" && file "$archive" && exit 1) \
     && tar xf "$archive" --directory /opt \
     && chmod ugo=rwx /opt/factorio \
     && rm "$archive" \
